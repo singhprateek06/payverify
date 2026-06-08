@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PayVerify — Payment Fraud Detection</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #080A0C;
+      --surface: #0F1214;
+      --surface2: #161A1D;
+      --surface3: #1C2126;
+      --border: rgba(255,255,255,0.06);
+      --border2: rgba(255,255,255,0.1);
+      --border3: rgba(255,255,255,0.16);
+      --text: #E8E6E0;
+      --text2: #8A8780;
+      --text3: #555250;
+      --accent: #E05252;
+      --accent2: rgba(224,82,82,0.12);
+      --accent3: rgba(224,82,82,0.06);
+      --green: #4CAF7D;
+      --green-bg: rgba(76,175,125,0.1);
+      --amber: #E8A838;
+      --amber-bg: rgba(232,168,56,0.1);
+      --red-bg: rgba(224,82,82,0.1);
+      --r: 10px;
+      --r-sm: 7px;
+    }
+
+    html { font-size: 16px; scroll-behavior: smooth; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* NAV */
+    nav {
+      padding: 0 2.5rem;
+      height: 60px;
+      border-bottom: 0.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      background: rgba(8,10,12,0.92);
+      backdrop-filter: blur(12px);
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      text-decoration: none;
+    }
+
+    .logo-mark {
+      width: 28px; height: 28px;
+      background: var(--accent);
+      border-radius: 7px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .logo-mark svg { width: 15px; height: 15px; color: #fff; }
+
+    .logo-name {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .nav-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-pill {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text3);
+      background: var(--surface2);
+      border: 0.5px solid var(--border2);
+      padding: 4px 10px;
+      border-radius: 20px;
+    }
+
+    .nav-status {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .pulse {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      position: relative;
+    }
+
+    .pulse::after {
+      content: '';
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      background: var(--green);
+      opacity: 0.25;
+      animation: pulse 2s ease infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.25; }
+      50% { transform: scale(1.8); opacity: 0; }
+    }
+
+    /* HERO */
+    .hero-wrap {
+      border-bottom: 0.5px solid var(--border);
+      padding: 5rem 2.5rem 4rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .hero-left h1 {
+      font-size: clamp(30px, 3.5vw, 48px);
+      font-weight: 600;
+      line-height: 1.12;
+      letter-spacing: -0.03em;
+      margin-bottom: 1.25rem;
+      color: var(--text);
+    }
+
+    .hero-left h1 em {
+      font-style: normal;
+      color: var(--accent);
+    }
+
+    .hero-left p {
+      font-size: 15px;
+      color: var(--text2);
+      line-height: 1.75;
+      font-weight: 300;
+      max-width: 420px;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      border: 0.5px solid var(--border2);
+    }
+
+    .stat-box {
+      background: var(--surface);
+      padding: 1.5rem;
+    }
+
+    .stat-num {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+
+    .stat-num span { color: var(--accent); }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.4;
+    }
+
+    /* MAIN */
+    main {
+      flex: 1;
+      max-width: 1100px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 3rem 2.5rem 5rem;
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 2rem;
+      align-items: start;
+    }
+
+    /* LEFT PANEL */
+    .left-panel {}
+
+    .section-label {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text3);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 0.5px;
+      background: var(--border);
+    }
+
+    /* UPLOAD */
+    .upload-zone {
+      border: 1px dashed var(--border3);
+      border-radius: var(--r);
+      padding: 3.5rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+      background: var(--surface);
+      margin-bottom: 1rem;
+    }
+
+    .upload-zone:hover, .upload-zone.drag {
+      border-color: var(--accent);
+      background: var(--accent3);
+    }
+
+    .upload-zone input[type="file"] {
+      position: absolute; inset: 0;
+      opacity: 0; cursor: pointer;
+      width: 100%; height: 100%;
+    }
+
+    .upload-glyph {
+      width: 56px; height: 56px;
+      background: var(--surface3);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 1.25rem;
+      border: 0.5px solid var(--border2);
+    }
+
+    .upload-glyph svg { width: 26px; height: 26px; color: var(--text2); }
+
+    .upload-zone h3 {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+
+    .upload-zone p {
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+
+    .upload-chips {
+      display: flex;
+      justify-content: center;
+      gap: 6px;
+      margin-top: 1rem;
+    }
+
+    .chip {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--text3);
+      background: var(--surface2);
+      border: 0.5px solid var(--border2);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    /* PREVIEW */
+    .preview-wrap {
+      display: none;
+      border-radius: var(--r);
+      overflow: hidden;
+      border: 0.5px solid var(--border2);
+      margin-bottom: 1rem;
+    }
+
+    .preview-wrap img {
+      width: 100%;
+      max-height: 360px;
+      object-fit: contain;
+      background: var(--surface2);
+      display: block;
+    }
+
+    .preview-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--surface);
+      border-top: 0.5px solid var(--border);
+    }
+
+    .preview-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .preview-icon {
+      width: 24px; height: 24px;
+      background: var(--surface3);
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .preview-icon svg { width: 13px; height: 13px; color: var(--text2); }
+
+    .preview-name {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: var(--text2);
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .btn-sm {
+      background: none;
+      border: 0.5px solid var(--border2);
+      color: var(--text2);
+      padding: 4px 10px;
+      border-radius: 5px;
+      font-size: 12px;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all 0.15s;
+    }
+
+    .btn-sm:hover { color: var(--text); border-color: var(--border3); }
+
+    /* ANALYZE BTN */
+    .btn-analyze {
+      width: 100%;
+      padding: 14px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--r-sm);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      transition: all 0.2s;
+      letter-spacing: -0.01em;
+    }
+
+    .btn-analyze:hover:not(:disabled) { background: #C94444; }
+    .btn-analyze:active:not(:disabled) { transform: scale(0.99); }
+    .btn-analyze:disabled {
+      background: var(--surface2);
+      color: var(--text3);
+      cursor: not-allowed;
+      border: 0.5px solid var(--border);
+    }
+
+    .btn-analyze svg { width: 17px; height: 17px; }
+
+    .spinner {
+      width: 17px; height: 17px;
+      border: 1.5px solid rgba(255,255,255,0.2);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.65s linear infinite;
+      display: none;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .error-box {
+      display: none;
+      margin-top: 1rem;
+      background: var(--red-bg);
+      border: 0.5px solid rgba(224,82,82,0.25);
+      color: #F09595;
+      padding: 0.85rem 1rem;
+      border-radius: var(--r-sm);
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
+    /* RIGHT PANEL */
+    .right-panel {}
+
+    /* INFO CARDS */
+    .info-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      background: var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+      border: 0.5px solid var(--border2);
+      margin-bottom: 1.5rem;
+    }
+
+    .info-row {
+      background: var(--surface);
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+    }
+
+    .info-icon {
+      width: 30px; height: 30px;
+      border-radius: 7px;
+      background: var(--surface3);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .info-icon svg { width: 15px; height: 15px; color: var(--text2); }
+
+    .info-title {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .info-desc {
+      font-size: 12px;
+      color: var(--text2);
+      line-height: 1.5;
+    }
+
+    /* WHAT WE CHECK */
+    .checks-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--r);
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    .card-header {
+      padding: 0.9rem 1.25rem;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 11px;
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--text3);
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+    }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 1.25rem;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 12.5px;
+      color: var(--text2);
+    }
+
+    .check-item:last-child { border-bottom: none; }
+
+    .check-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: var(--accent);
+      flex-shrink: 0;
+    }
+
+    /* RESULTS */
+    .results-wrap {
+      display: none;
+      margin-top: 2rem;
+    }
+
+    /* VERDICT */
+    .verdict-block {
+      border-radius: var(--r);
+      border: 0.5px solid var(--border2);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .verdict-top {
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .verdict-top.genuine { background: rgba(76,175,125,0.07); border-bottom: 0.5px solid rgba(76,175,125,0.2); }
+    .verdict-top.fake    { background: rgba(224,82,82,0.07);  border-bottom: 0.5px solid rgba(224,82,82,0.2); }
+    .verdict-top.uncertain { background: rgba(232,168,56,0.07); border-bottom: 0.5px solid rgba(232,168,56,0.2); }
+
+    .verdict-badge {
+      width: 48px; height: 48px;
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .verdict-badge svg { width: 24px; height: 24px; }
+    .verdict-badge.genuine  { background: var(--green-bg);  color: var(--green); }
+    .verdict-badge.fake     { background: var(--red-bg);    color: var(--accent); }
+    .verdict-badge.uncertain{ background: var(--amber-bg);  color: var(--amber); }
+
+    .verdict-info h4 {
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      margin-bottom: 3px;
+    }
+
+    .verdict-info h4.genuine  { color: var(--green); }
+    .verdict-info h4.fake     { color: var(--accent); }
+    .verdict-info h4.uncertain{ color: var(--amber); }
+
+    .verdict-info p { font-size: 13px; color: var(--text2); line-height: 1.5; }
+
+    .conf-section {
+      padding: 1rem 1.5rem;
+      background: var(--surface2);
+    }
+
+    .conf-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .conf-meta span:first-child {
+      font-size: 12px;
+      color: var(--text2);
+    }
+
+    .conf-meta span:last-child {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .bar-track {
+      height: 3px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 1.1s cubic-bezier(0.16,1,0.3,1);
+      width: 0%;
+    }
+
+    .bar-fill.genuine  { background: var(--green); }
+    .bar-fill.fake     { background: var(--accent); }
+    .bar-fill.uncertain{ background: var(--amber); }
+
+    /* SIGNALS */
+    .signals-block {
+      background: var(--surface);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--r);
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .signal-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      padding: 10px 1.25rem;
+      border-bottom: 0.5px solid var(--border);
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.55;
+      transition: background 0.12s;
+    }
+
+    .signal-row:last-child { border-bottom: none; }
+    .signal-row:hover { background: var(--surface2); }
+
+    .sig-icon {
+      width: 20px; height: 20px;
+      border-radius: 5px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .sig-icon svg { width: 11px; height: 11px; }
+    .sig-icon.ok   { background: var(--green-bg);  color: var(--green); }
+    .sig-icon.warn { background: var(--amber-bg);  color: var(--amber); }
+    .sig-icon.bad  { background: var(--red-bg);    color: var(--accent); }
+
+    /* DETAIL */
+    .detail-block {
+      background: var(--surface);
+      border: 0.5px solid var(--border2);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+
+    .detail-body {
+      padding: 1.25rem;
+      font-size: 13px;
+      color: var(--text2);
+      line-height: 1.8;
+      font-weight: 300;
+    }
+
+    /* NOTICE */
+    .notice {
+      margin-top: 1.25rem;
+      padding: 0.9rem 1rem;
+      background: var(--surface);
+      border-radius: var(--r-sm);
+      border: 0.5px solid var(--border);
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .notice svg { width: 14px; height: 14px; color: var(--text3); flex-shrink: 0; margin-top: 2px; }
+    .notice p { font-size: 11.5px; color: var(--text3); line-height: 1.65; }
+
+    /* FOOTER */
+    footer {
+      border-top: 0.5px solid var(--border);
+      padding: 1.25rem 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text3);
+    }
+
+    .footer-brand strong { color: var(--text2); font-weight: 500; }
+
+    .footer-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .footer-links a {
+      font-size: 12px;
+      color: var(--text3);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .footer-links a:hover { color: var(--text2); }
+
+    /* RESPONSIVE */
+    @media (max-width: 900px) {
+      .hero-wrap { grid-template-columns: 1fr; gap: 2rem; padding: 3rem 1.5rem 2.5rem; }
+      main { grid-template-columns: 1fr; padding: 2rem 1.5rem 4rem; }
+      .right-panel { order: -1; }
+      nav { padding: 0 1.5rem; }
+      footer { flex-direction: column; gap: 1rem; align-items: flex-start; padding: 1.25rem 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="logo" href="#">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    </div>
+    <span class="logo-name">PayVerify</span>
+  </a>
+  <div class="nav-right">
+    <span class="nav-pill">India · UPI / NEFT</span>
+    <div class="nav-status">
+      <div class="pulse"></div>
+      <span>Live</span>
+    </div>
+  </div>
+</nav>
+
+<div class="hero-wrap">
+  <div class="hero-left">
+    <h1>Detect <em>fake payment</em><br>screenshots instantly</h1>
+    <p>Upload any UPI, NEFT, or bank app confirmation screenshot. Our AI analyzes it for tampering, forgery, and pixel-level anomalies in seconds.</p>
+  </div>
+  <div class="hero-stats">
+    <div class="stat-box">
+      <div class="stat-num">10<span>+</span></div>
+      <div class="stat-label">Detection signals analyzed per screenshot</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num" style="color:var(--green)">~3s</div>
+      <div class="stat-label">Average analysis time per upload</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">UPI</div>
+      <div class="stat-label">GPay, PhonePe, Paytm, BHIM supported</div>
+    </div>
+    <div class="stat-box">
+      <div class="stat-num">AI</div>
+      <div class="stat-label">Powered by Claude Vision by Anthropic</div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <div class="left-panel">
+    <div class="section-label">Upload Screenshot</div>
+
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept="image/*" aria-label="Upload payment screenshot" />
+      <div class="upload-glyph">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      </div>
+      <h3>Drop your screenshot here</h3>
+      <p>or click to browse your files</p>
+      <div class="upload-chips">
+        <span class="chip">JPG</span>
+        <span class="chip">PNG</span>
+        <span class="chip">WEBP</span>
+        <span class="chip">MAX 10MB</span>
+      </div>
+    </div>
+
+    <div class="preview-wrap" id="previewWrap">
+      <img id="previewImg" src="" alt="Preview" />
+      <div class="preview-bar">
+        <div class="preview-meta">
+          <div class="preview-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          </div>
+          <span class="preview-name" id="previewName">screenshot.jpg</span>
+        </div>
+        <button class="btn-sm" id="removeBtn">Remove</button>
+      </div>
+    </div>
+
+    <button class="btn-analyze" id="analyzeBtn" disabled>
+      <div class="spinner" id="spinner"></div>
+      <svg id="btnIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      <span id="btnText">Analyze Screenshot</span>
+    </button>
+
+    <div class="error-box" id="errorBox"></div>
+
+    <!-- RESULTS -->
+    <div class="results-wrap" id="resultsWrap">
+      <div class="section-label" style="margin-top:2rem">Analysis Result</div>
+
+      <div class="verdict-block">
+        <div class="verdict-top" id="verdictTop">
+          <div class="verdict-badge" id="verdictBadge">
+            <svg id="verdictSvg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"></svg>
+          </div>
+          <div class="verdict-info">
+            <h4 id="verdictLabel">—</h4>
+            <p id="verdictSummary">—</p>
+          </div>
+        </div>
+        <div class="conf-section">
+          <div class="conf-meta">
+            <span>Confidence</span>
+            <span id="confVal">—</span>
+          </div>
+          <div class="bar-track">
+            <div class="bar-fill" id="barFill"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="signals-block">
+        <div class="card-header">Detection Signals</div>
+        <div id="signalsList"></div>
+      </div>
+
+      <div class="detail-block">
+        <div class="card-header">Technical Analysis</div>
+        <div class="detail-body" id="detailBody">—</div>
+      </div>
+
+      <div class="notice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <p>This tool uses AI-based visual analysis and should be used as an indicator only. Always confirm transactions through your bank's official channels before releasing goods or services.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-panel">
+    <div class="section-label">How it works</div>
+    <div class="info-stack">
+      <div class="info-row">
+        <div class="info-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div>
+          <div class="info-title">Upload</div>
+          <div class="info-desc">Drop any payment screenshot from GPay, PhonePe, Paytm, BHIM, or bank apps.</div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        </div>
+        <div>
+          <div class="info-title">AI analysis</div>
+          <div class="info-desc">Claude Vision scans for fonts, pixels, layout, transaction IDs, and amount formatting.</div>
+        </div>
+      </div>
+      <div class="info-row">
+        <div class="info-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        </div>
+        <div>
+          <div class="info-title">Get verdict</div>
+          <div class="info-desc">Receive a Genuine / Fake / Uncertain verdict with confidence score and signal breakdown.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-label">What we check</div>
+    <div class="checks-card">
+      <div class="card-header">Detection criteria</div>
+      <div class="check-item"><div class="check-dot"></div>Font consistency and typeface matching</div>
+      <div class="check-item"><div class="check-dot"></div>Pixel artifacts and irregular edges</div>
+      <div class="check-item"><div class="check-dot"></div>Layout spacing and alignment</div>
+      <div class="check-item"><div class="check-dot"></div>Color and gradient accuracy</div>
+      <div class="check-item"><div class="check-dot"></div>Transaction ID format validity</div>
+      <div class="check-item"><div class="check-dot"></div>Amount and currency formatting</div>
+      <div class="check-item"><div class="check-dot"></div>Timestamp plausibility</div>
+      <div class="check-item"><div class="check-dot"></div>Logo and watermark integrity</div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="footer-brand">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    <strong>PayVerify</strong> &nbsp;·&nbsp; AI-Powered Payment Fraud Detection
+  </div>
+  <div class="footer-links">
+    <a href="#">Documentation</a>
+    <a href="#">API</a>
+    <a href="#">About</a>
+  </div>
+</footer>
+
+<script>
+  const API_URL = 'http://localhost:3001/api/analyze';
+
+  const fileInput   = document.getElementById('fileInput');
+  const uploadZone  = document.getElementById('uploadZone');
+  const previewWrap = document.getElementById('previewWrap');
+  const previewImg  = document.getElementById('previewImg');
+  const previewName = document.getElementById('previewName');
+  const removeBtn   = document.getElementById('removeBtn');
+  const analyzeBtn  = document.getElementById('analyzeBtn');
+  const spinner     = document.getElementById('spinner');
+  const btnIcon     = document.getElementById('btnIcon');
+  const btnText     = document.getElementById('btnText');
+  const errorBox    = document.getElementById('errorBox');
+  const resultsWrap = document.getElementById('resultsWrap');
+
+  let selectedFile = null;
+
+  fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault(); uploadZone.classList.remove('drag');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) loadFile(f);
+  });
+
+  removeBtn.addEventListener('click', () => {
+    selectedFile = null;
+    previewWrap.style.display = 'none';
+    uploadZone.style.display = 'block';
+    analyzeBtn.disabled = true;
+    resultsWrap.style.display = 'none';
+    errorBox.style.display = 'none';
+    fileInput.value = '';
+  });
+
+  function loadFile(file) {
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+      previewName.textContent = file.name;
+      previewWrap.style.display = 'block';
+      uploadZone.style.display = 'none';
+      analyzeBtn.disabled = false;
+      resultsWrap.style.display = 'none';
+      errorBox.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+  }
+
+  analyzeBtn.addEventListener('click', async () => {
+    if (!selectedFile) return;
+    setLoading(true);
+    resultsWrap.style.display = 'none';
+    errorBox.style.display = 'none';
+    try {
+      const fd = new FormData();
+      fd.append('screenshot', selectedFile);
+      const res = await fetch(API_URL, { method: 'POST', body: fd });
+      if (!res.ok) { const e = await res.json(); throw new Error(e.error || 'Server error'); }
+      showResult(await res.json());
+    } catch (err) {
+      errorBox.textContent = '⚠  ' + err.message;
+      errorBox.style.display = 'block';
+    } finally { setLoading(false); }
+  });
+
+  function setLoading(on) {
+    analyzeBtn.disabled = on;
+    spinner.style.display = on ? 'block' : 'none';
+    btnIcon.style.display = on ? 'none' : 'block';
+    btnText.textContent = on ? 'Analyzing…' : 'Analyze Screenshot';
+  }
+
+  function showResult(data) {
+    const verdict = (data.verdict || 'UNCERTAIN').toUpperCase();
+    const conf = Math.min(100, Math.max(0, parseInt(data.confidence) || 50));
+    const signals = Array.isArray(data.signals) ? data.signals : [];
+
+    const cfg = {
+      GENUINE:   { cls:'genuine',   label:'Likely Genuine',     svg:'<polyline points="20 6 9 17 4 12"/>' },
+      FAKE:      { cls:'fake',      label:'Possible Fake',       svg:'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>' },
+      UNCERTAIN: { cls:'uncertain', label:'Uncertain',           svg:'<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
+    };
+    const c = cfg[verdict] || cfg.UNCERTAIN;
+
+    document.getElementById('verdictTop').className    = 'verdict-top ' + c.cls;
+    document.getElementById('verdictBadge').className  = 'verdict-badge ' + c.cls;
+    document.getElementById('verdictSvg').innerHTML    = c.svg;
+    document.getElementById('verdictLabel').className  = c.cls;
+    document.getElementById('verdictLabel').textContent = c.label;
+    document.getElementById('verdictSummary').textContent = data.summary || '';
+    document.getElementById('confVal').textContent     = conf + '%';
+
+    const fill = document.getElementById('barFill');
+    fill.className = 'bar-fill ' + c.cls;
+    setTimeout(() => { fill.style.width = conf + '%'; }, 80);
+
+    const icons = {
+      ok:   '<polyline points="20 6 9 17 4 12"/>',
+      warn: '<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+      bad:  '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+    };
+
+    document.getElementById('signalsList').innerHTML = signals.map(s => {
+      const t = s.type || 'warn';
+      return `<div class="signal-row"><div class="sig-icon ${t}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">${icons[t]||icons.warn}</svg></div><span>${s.text||''}</span></div>`;
+    }).join('');
+
+    document.getElementById('detailBody').textContent = data.detail || 'No additional detail available.';
+    resultsWrap.style.display = 'block';
+    resultsWrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+</script>
+</body>
+</html>

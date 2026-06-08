@@ -1,0 +1,117 @@
+const express = require("express");
+const multer = require("multer");
+const cors = require("cors");
+
+const app = express();
+const PORT = 3001;
+
+app.use(cors());
+app.use(express.json());
+
+const storage = multer.memoryStorage();
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith("image/")) cb(null, true);
+    else cb(new Error("Only image files are allowed"), false);
+  },
+});
+
+const PROMPT = `You are an expert payment fraud detection system specializing in Indian digital payments (UPI, NEFT, IMPS, RTGS, and bank apps like Google Pay, PhonePe, Paytm, BHIM, SBI, HDFC, ICICI).
+
+Analyze this payment screenshot for signs of tampering or forgery.
+
+Examine:
+1. Font consistency
+2. Pixel artifacts or irregular edges
+3. Layout and spacing anomalies
+4. Color inconsistencies
+5. Transaction ID format validity
+6. Amount formatting (Indian numbering, rupee symbol)
+8. Logo and watermark integrity
+Important: Do NOT check or mention dates, timestamps, or time-related information in your analysis. Ignore all dates completely.
+Respond ONLY with a valid JSON object, no markdown, no backticks:
+{
+  "verdict": "GENUINE" | "FAKE" | "UNCERTAIN",
+  "confidence": <integer 0-100>,
+  "summary": "<one clear sentence>",
+  "signals": [
+    { "type": "ok" | "warn" | "bad", "text": "<finding>" }
+  ],
+  "detail": "<2-3 sentence technical explanation>"
+}`;
+
+app.post("/api/analyze", upload.single("screenshot"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No image file uploaded." });
+    }
+
+    const base64Image = req.file.buffer.toString("base64");
+    const mimeType = req.file.mimetype;
+    const apiKey = process.env.OPENROUTER_API_KEY;
+
+    if (!apiKey) {
+      return res.status(500).json({ error: "OPENROUTER_API_KEY not set." });
+    }
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "meta-llama/llama-4-maverick",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: PROMPT },
+              {
+                type: "image_url",
+                image_url: {
+                  url: `data:${mimeType};base64,${base64Image}`,
+                },
+              },
+            ],
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      console.error("OpenRouter error:", JSON.stringify(data));
+      throw new Error(data.error?.message || "OpenRouter API error");
+    }
+
+    const rawText = data.choices?.[0]?.message?.content || "";
+
+    let parsed;
+    try {
+      const clean = rawText.replace(/```json|```/g, "").trim();
+      parsed = JSON.parse(clean);
+    } catch (e) {
+      return res.status(500).json({ error: "Failed to parse AI response.", raw: rawText });
+    }
+
+    res.json(parsed);
+  } catch (err) {
+    console.error("Error:", err.message);
+    res.status(500).json({ error: err.message || "Internal server error" });
+  }
+});
+
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+app.listen(PORT, () => {
+  console.log(`\n✅ PayVerify backend running at http://localhost:${PORT}`);
+  if (!process.env.OPENROUTER_API_KEY) {
+    console.warn("⚠️  WARNING: OPENROUTER_API_KEY not set.\n");
+  }
+});
