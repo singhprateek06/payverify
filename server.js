@@ -35,8 +35,8 @@ Examine these factors:
 8. AI generation signs — unnatural text rendering, wrong logo proportions, inconsistent edges
 
 VERDICT RULES:
-- GENUINE: screenshot looks authentic with no suspicious signals
-- UNCERTAIN: 1-2 minor suspicious signals but not conclusive
+- GENUINE: screenshot looks authentic with 1-2 suspicious signals
+- UNCERTAIN: 3 minor suspicious signals but not conclusive
 - FAKE: clear evidence of tampering, editing, or AI generation
 
 Only mark as FAKE when there is strong clear evidence. When in doubt use UNCERTAIN not FAKE.
