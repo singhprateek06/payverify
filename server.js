@@ -90,13 +90,13 @@ J. COLOR VERIFICATION
 - Any color variation from official brand colors is suspicious
 
 ═══ VERDICT RULES (BE VERY STRICT) ═══
-- FAKE: ANY sign of AI generation OR 2+ tampering signals
-- UNCERTAIN: 1 suspicious signal that could go either way  
-- GENUINE: ALL checks pass with zero suspicion — be very hard to give this
+- FAKE: 3 or more strong tampering signals found
+- UNCERTAIN: 1-2 suspicious signals found but not conclusive
+- GENUINE: majority of checks pass with only minor observations
 
-When in doubt always choose FAKE over GENUINE.
-A false positive (calling real fake) is acceptable.
-A false negative (calling fake real) causes financial fraud.
+When in doubt choose UNCERTAIN not FAKE.
+Balance is important — genuine screenshots must pass correctly.
+Only mark FAKE when there is strong clear evidence of tampering.
 
 Respond ONLY with valid JSON, no markdown, no backticks:
 {
