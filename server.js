@@ -91,7 +91,7 @@ VERDICT RULES:
 
 Be extremely strict. When in doubt, mark as FAKE or UNCERTAIN. A fake screenshot causing financial fraud is far worse than a false positive.
 
-Important: Do NOT check or mention dates or timestamps under any circumstances.
+Important: Do NOT check or mention dates, timestamps, or time-related information under any circumstances. A past or future date is NOT a sign of tampering — ignore all dates completely.
 
 Respond ONLY with a valid JSON object, no markdown, no backticks:
 {
