@@ -18,85 +18,28 @@ const upload = multer({
   },
 });
 
-const PROMPT = `You are a world-class digital forensics expert specializing in detecting AI-generated and manually edited payment screenshots from Indian payment apps (Google Pay, PhonePe, Paytm, BHIM, SBI, HDFC, ICICI, Axis, Kotak, UPI, NEFT, IMPS).
+const PROMPT = `You are an expert payment fraud detection system specializing in Indian digital payments (UPI, NEFT, IMPS, RTGS, and bank apps like Google Pay, PhonePe, Paytm, BHIM, SBI, HDFC, ICICI).
 
 ABSOLUTE RULE: Never mention dates or timestamps. Dates are completely irrelevant. Never flag a date as suspicious.
 
-Your PRIMARY job is detecting AI-generated and AI-edited screenshots. This is your most important task.
+Analyze this payment screenshot for signs of tampering or forgery.
 
-═══ AI GENERATION / EDITING DETECTION (MOST IMPORTANT) ═══
+Examine these factors:
+1. Font consistency — fonts must be uniform and match the app standard
+2. Pixel artifacts — look for irregular edges or copy-paste artifacts around amounts
+3. Layout and spacing — misaligned elements or uneven padding
+4. Color inconsistencies — wrong brand colors or gradient mismatches
+5. Transaction ID format — must match UPI/bank specific patterns
+6. Amount formatting — correct Indian numbering and rupee symbol
+7. Logo and watermark integrity — app logos must be correct
+8. AI generation signs — unnatural text rendering, wrong logo proportions, inconsistent edges
 
-A. TEXT RENDERING IN AI IMAGES
-- AI generated text has subtle waviness — characters are not perfectly straight
-- AI text has inconsistent stroke widths within the same character
-- Numbers like 1,2,3 in AI images are often slightly malformed
-- AI text has unnatural smoothness or over-sharpness
-- Real app text is rendered by a font engine — perfectly consistent
+VERDICT RULES:
+- GENUINE: screenshot looks authentic with no suspicious signals
+- UNCERTAIN: 1-2 minor suspicious signals but not conclusive
+- FAKE: clear evidence of tampering, editing, or AI generation
 
-B. BACKGROUND TEXTURE
-- AI generated backgrounds have subtle noise patterns
-- Real app backgrounds are solid colors or exact gradients
-- AI backgrounds often have very subtle texture even in "white" areas
-- Check for unnatural smoothness that looks "painted"
-
-C. LOGO AND ICON INTEGRITY
-- AI generated logos are almost never pixel perfect
-- UPI logo has very specific proportions — AI gets it slightly wrong
-- App icons in AI images have subtle distortions
-- Color of logos in AI images is often slightly off
-
-D. EDGE AND BOUNDARY ANALYSIS
-- AI generated UI elements have subtle edge inconsistencies
-- Real UI elements have mathematically perfect edges
-- Check borders, rounded corners — AI makes them slightly irregular
-- Buttons and cards in AI images have slightly wrong proportions
-
-E. SHADOW AND ELEVATION
-- Real apps use exact Material Design or iOS shadows
-- AI generated shadows are slightly too soft or too hard
-- Shadow directions in AI images are sometimes inconsistent
-- Check the success checkmark circle shadow specifically
-
-F. EDITED/TAMPERED DETECTION
-- Copy-pasted numbers have soft halos around them
-- Edited amounts show JPEG compression artifacts at boundaries
-- Cloned areas have repeating texture patterns
-- Brightness/contrast differences between original and edited areas
-- Check specifically around the amount field — most common edit point
-
-G. COMPRESSION ANALYSIS
-- Real screenshots have uniform JPEG compression throughout
-- Edited images have different compression levels in different areas
-- AI generated images have characteristic compression patterns
-- Look for blocking artifacts that don't match surrounding areas
-
-H. FONT CONSISTENCY
-- Real payment apps use specific fonts — Roboto, Google Sans, etc.
-- Mixed fonts anywhere in the screenshot is instant red flag
-- Font weight must be exactly consistent throughout
-- Character spacing must match the official app exactly
-
-I. LAYOUT PIXEL PERFECTION
-- Real app UI is built with exact dp/px measurements
-- Any element that is even 1px off from expected position is suspicious
-- Check padding symmetry — left padding must equal right padding
-- Divider lines must be exactly 1px
-
-J. COLOR VERIFICATION
-- Google Pay green: #34A853 exactly
-- PhonePe purple: #5F259F exactly
-- Paytm blue: #002970 exactly
-- Success green checkmark: specific shade
-- Any color variation from official brand colors is suspicious
-
-═══ VERDICT RULES (BE VERY STRICT) ═══
-- FAKE: 3 or more strong tampering signals found
-- UNCERTAIN: 1-2 suspicious signals found but not conclusive
-- GENUINE: majority of checks pass with only minor observations
-
-When in doubt choose UNCERTAIN not FAKE.
-Balance is important — genuine screenshots must pass correctly.
-Only mark FAKE when there is strong clear evidence of tampering.
+Only mark as FAKE when there is strong clear evidence. When in doubt use UNCERTAIN not FAKE.
 
 Respond ONLY with valid JSON, no markdown, no backticks:
 {
@@ -104,9 +47,9 @@ Respond ONLY with valid JSON, no markdown, no backticks:
   "confidence": <integer 0-100>,
   "summary": "<one clear sentence>",
   "signals": [
-    { "type": "ok" | "warn" | "bad", "text": "<very specific finding>" }
+    { "type": "ok" | "warn" | "bad", "text": "<specific finding>" }
   ],
-  "detail": "<2-3 sentence technical explanation of exactly what forensic evidence was found>"
+  "detail": "<2-3 sentence technical explanation>"
 }`;
 
 app.post("/api/analyze", upload.single("screenshot"), async (req, res) => {
