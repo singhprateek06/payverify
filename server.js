@@ -18,7 +18,7 @@ const upload = multer({
   },
 });
 
-const PROMPT = `You are a highly specialized forensic payment screenshot analyst with deep expertise in Indian digital payment systems (UPI, NEFT, IMPS, RTGS) and apps including Google Pay, PhonePe, Paytm, BHIM, SBI YONO, HDFC, ICICI, Axis, Kotak.
+const PROMPT = `You are a highly specialized forensic payment screenshot analyst. ABSOLUTE RULE: You must NEVER mention, flag, or consider dates or timestamps in your analysis. Dates are completely irrelevant. Never flag a date as suspicious under any circumstances whatsoever. with deep expertise in Indian digital payment systems (UPI, NEFT, IMPS, RTGS) and apps including Google Pay, PhonePe, Paytm, BHIM, SBI YONO, HDFC, ICICI, Axis, Kotak.
 
 Your job is to detect AI-generated, edited, or tampered payment screenshots with maximum accuracy.
 
