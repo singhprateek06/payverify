@@ -247,6 +247,26 @@
       footer { flex-direction: column; gap: 1rem; align-items: flex-start; padding: 1.25rem 1.5rem; }
       .bulk-summary { grid-template-columns: repeat(3, 1fr); }
     }
+    .btn-share {
+  width: 100%;
+  padding: 12px;
+  background: var(--surface2);
+  color: var(--text);
+  border: 0.5px solid var(--border2);
+  border-radius: var(--r-sm);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  margin-bottom: 1rem;
+}
+
+.btn-share:hover { background: var(--surface3); border-color: var(--border3); }
   </style>
 </head>
 <body>
@@ -365,6 +385,13 @@
         <div class="card-header">Technical Analysis</div>
         <div class="detail-body" id="detailBody">—</div>
       </div>
+      <button class="btn-share" id="shareBtn" onclick="shareResult()">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+  Share Result as Image
+</button>
+
+<!-- Hidden canvas for generating share image -->
+<canvas id="shareCanvas" style="display:none"></canvas>
       <div class="notice">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
         <p>This tool uses AI-based visual analysis and should be used as an indicator only. Always confirm transactions through your bank's official channels.</p>
@@ -752,6 +779,156 @@
   }
 
   renderHistory();
+  function shareResult() {
+  const verdict = document.getElementById('verdictLabel').textContent;
+  const summary = document.getElementById('verdictSummary').textContent;
+  const conf = document.getElementById('confVal').textContent;
+  const filename = document.getElementById('previewName').textContent;
+
+  const canvas = document.getElementById('shareCanvas');
+  const ctx = canvas.getContext('2d');
+
+  canvas.width = 800;
+  canvas.height = 450;
+
+  // Background
+  ctx.fillStyle = '#0F1214';
+  ctx.fillRect(0, 0, 800, 450);
+
+  // Top accent bar
+  const verdictLower = verdict.toLowerCase().includes('genuine') ? 'genuine' :
+                       verdict.toLowerCase().includes('fake') ? 'fake' : 'uncertain';
+
+  const colors = {
+    genuine:   { bg: '#4CAF7D', text: '#4CAF7D', card: 'rgba(76,175,125,0.1)' },
+    fake:      { bg: '#E05252', text: '#E05252', card: 'rgba(224,82,82,0.1)' },
+    uncertain: { bg: '#E8A838', text: '#E8A838', card: 'rgba(232,168,56,0.1)' },
+  };
+  const c = colors[verdictLower] || colors.uncertain;
+
+  // Top bar
+  ctx.fillStyle = c.bg;
+  ctx.fillRect(0, 0, 800, 6);
+
+  // Logo area
+  ctx.fillStyle = '#E05252';
+  ctx.beginPath();
+  ctx.roundRect(40, 40, 44, 44, 10);
+  ctx.fill();
+
+  // Shield icon (simple)
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 22px Arial';
+  ctx.fillText('✓', 52, 70);
+
+  // PayVerify text
+  ctx.fillStyle = '#E8E6E0';
+  ctx.font = 'bold 22px Arial';
+  ctx.fillText('PayVerify', 96, 70);
+
+  ctx.fillStyle = '#555250';
+  ctx.font = '13px Arial';
+  ctx.fillText('AI Payment Fraud Detection', 96, 90);
+
+  // Divider
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(40, 110);
+  ctx.lineTo(760, 110);
+  ctx.stroke();
+
+  // Verdict card background
+  ctx.fillStyle = c.card;
+  ctx.beginPath();
+  ctx.roundRect(40, 135, 720, 120, 12);
+  ctx.fill();
+
+  // Verdict circle
+  ctx.fillStyle = c.bg + '33';
+  ctx.beginPath();
+  ctx.arc(90, 195, 30, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Verdict icon
+  ctx.fillStyle = c.text;
+  ctx.font = 'bold 24px Arial';
+  ctx.textAlign = 'center';
+  if (verdictLower === 'genuine') ctx.fillText('✓', 90, 203);
+  else if (verdictLower === 'fake') ctx.fillText('✗', 90, 203);
+  else ctx.fillText('?', 90, 203);
+  ctx.textAlign = 'left';
+
+  // Verdict label
+  ctx.fillStyle = c.text;
+  ctx.font = 'bold 32px Arial';
+  ctx.fillText(verdict, 135, 190);
+
+  // Summary
+  ctx.fillStyle = '#8A8780';
+  ctx.font = '16px Arial';
+  ctx.fillText(summary.length > 65 ? summary.substring(0, 65) + '...' : summary, 135, 220);
+
+  // Confidence section
+  ctx.fillStyle = '#1C2126';
+  ctx.beginPath();
+  ctx.roundRect(40, 275, 720, 70, 10);
+  ctx.fill();
+
+  ctx.fillStyle = '#8A8780';
+  ctx.font = '14px Arial';
+  ctx.fillText('Confidence Score', 60, 305);
+
+  ctx.fillStyle = '#E8E6E0';
+  ctx.font = 'bold 20px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText(conf, 740, 305);
+  ctx.textAlign = 'left';
+
+  // Confidence bar background
+  ctx.fillStyle = 'rgba(255,255,255,0.08)';
+  ctx.beginPath();
+  ctx.roundRect(60, 315, 680, 4, 2);
+  ctx.fill();
+
+  // Confidence bar fill
+  const confNum = parseInt(conf) || 50;
+  ctx.fillStyle = c.bg;
+  ctx.beginPath();
+  ctx.roundRect(60, 315, (680 * confNum / 100), 4, 2);
+  ctx.fill();
+
+  // File name
+  ctx.fillStyle = '#555250';
+  ctx.font = '13px monospace';
+  ctx.fillText('File: ' + filename, 40, 385);
+
+  // Website
+  ctx.fillStyle = '#555250';
+  ctx.font = '13px Arial';
+  ctx.textAlign = 'right';
+  ctx.fillText('payverifyy.netlify.app', 760, 385);
+  ctx.textAlign = 'left';
+
+  // Bottom border
+  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(40, 400);
+  ctx.lineTo(760, 400);
+  ctx.stroke();
+
+  // Disclaimer
+  ctx.fillStyle = '#333';
+  ctx.font = '12px Arial';
+  ctx.fillText('For verification purposes only. Always confirm with your bank.', 40, 425);
+
+  // Download
+  const link = document.createElement('a');
+  link.download = `payverify-result-${verdictLower}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
 </script>
 </body>
 </html>
