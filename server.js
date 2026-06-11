@@ -86,7 +86,7 @@ CRITICAL flaws (any one = strong evidence of FAKE):
 - AI generation artifacts on text or logos
 - Layout elements physically impossible in the real app
 
-MODERATE flaws (2+ = UNCERTAIN, 4+ = lean FAKE):
+MODERATE flaws (5+ = UNCERTAIN, 6+ = lean FAKE):
 - Font inconsistency in non-amount areas
 - Minor pixel noise differences between regions
 - Slightly off icon proportions
