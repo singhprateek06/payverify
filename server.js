@@ -184,8 +184,14 @@ app.post('/api/chat', async (req, res) => {
     });
 
     const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "Sorry, I could not process that.";
-    res.json({ reply });
+console.log("OpenRouter chat response:", JSON.stringify(data));
+
+if (data.error) {
+  return res.json({ reply: "Error: " + data.error.message });
+}
+
+const reply = data.choices?.[0]?.message?.content || "Sorry, I could not process that.";
+res.json({ reply });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
