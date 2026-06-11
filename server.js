@@ -157,7 +157,39 @@ if (parsed.summary) {
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+    const apiKey = process.env.OPENROUTER_API_KEY;
 
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "meta-llama/llama-4-maverick:free",
+        messages: [
+          {
+            role: "system",
+            content: `You are PayVerify Assistant, a helpful expert on Indian UPI/payment fraud and how to spot fake payment screenshots. 
+            Help users understand how PayVerify works, give tips on spotting fake screenshots, and advise what to do if they receive a fake payment.
+            Keep responses under 4 sentences. Be friendly and practical.
+            PayVerify checks: font consistency, pixel artifacts, layout, colors, transaction ID format, amount formatting, and logos.`
+          },
+          { role: "user", content: message }
+        ]
+      }),
+    });
+
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "Sorry, I could not process that.";
+    res.json({ reply });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 app.listen(PORT, () => {
   console.log(`\n✅ PayVerify backend running at http://localhost:${PORT}`);
   if (!process.env.OPENROUTER_API_KEY) {
