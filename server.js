@@ -18,38 +18,55 @@ const upload = multer({
   },
 });
 
-const PROMPT = `You are an expert payment fraud detection system specializing in Indian digital payments (UPI, NEFT, IMPS, RTGS, and bank apps like Google Pay, PhonePe, Paytm, BHIM, SBI, HDFC, ICICI).
+const PROMPT = `You are a digital forensics expert specializing in Indian payment screenshot authentication (Google Pay, PhonePe, Paytm, BHIM, NEFT, IMPS, UPI, bank apps).
 
-ABSOLUTE RULE: Never mention dates or timestamps. Dates are completely irrelevant. Never flag a date as suspicious.
+ABSOLUTE RULE: Never mention, flag, or consider dates or timestamps. Dates are completely irrelevant. Ignore all dates.
 
-Analyze this payment screenshot for signs of tampering or forgery.
+REFERENCE - GENUINE SCREENSHOT CHARACTERISTICS:
+- Text uses a single consistent sans-serif font throughout (Roboto/Google Sans/Inter style)
+- Numbers are perfectly sharp, same weight as surrounding text
+- Success checkmark icon is a clean solid circle with white tick, no jagged edges
+- Background is solid color or simple smooth gradient, no visible noise/grain
+- All elements are perfectly aligned on a grid, consistent padding
+- Amount and "Paid to" name use the exact same font as rest of screen
+- Logos (UPI, bank logos) are crisp and exactly proportioned
 
-Examine these factors:
-1. Font consistency — fonts must be uniform and match the app standard
-2. Pixel artifacts — look for irregular edges or copy-paste artifacts around amounts
-3. Layout and spacing — misaligned elements or uneven padding
-4. Color inconsistencies — wrong brand colors or gradient mismatches
-5. Transaction ID format — must match UPI/bank specific patterns
-6. Amount formatting — correct Indian numbering and rupee symbol
-7. Logo and watermark integrity — app logos must be correct
-8. AI generation signs — unnatural text rendering, wrong logo proportions, inconsistent edges
+REFERENCE - FAKE/EDITED SCREENSHOT RED FLAGS:
+- Amount or name text has slightly different font, size, or boldness than surrounding text
+- Visible rectangle/halo or color difference around edited text (copy-paste box)
+- Blurry or pixelated numbers while rest of image is sharp
+- Background has visible grain/noise/texture (common in AI generated images)
+- Checkmark icon looks slightly asymmetric, wrong shade of green/blue, or has soft edges
+- Text characters look slightly wavy or unevenly spaced (AI generation signature)
+- Misaligned elements - amount not centered properly, padding inconsistent
+- Logo looks slightly distorted, wrong color, or low resolution compared to rest
 
-VERDICT RULES:
-- GENUINE: screenshot looks authentic with no suspicious signals
-- UNCERTAIN: 1-2 minor suspicious signals but not conclusive
-- FAKE: clear evidence of tampering, editing, or AI generation
+ANALYSIS PROCESS:
+1. Identify the payment app (GPay/PhonePe/Paytm/BHIM/bank/other)
+2. Compare the amount text against the GENUINE characteristics above - does it match?
+3. Compare the "Paid to" name text against GENUINE characteristics - does it match?
+4. Check the success icon/checkmark against GENUINE characteristics
+5. Check overall background and texture against GENUINE characteristics
+6. Check alignment and layout against GENUINE characteristics
+7. Check transaction ID format validity for the identified app
 
-Only mark as FAKE when there is strong clear evidence. When in doubt use UNCERTAIN not FAKE.
+VERDICT DECISION:
+- GENUINE: matches reference genuine characteristics closely, no red flags found
+- FAKE: matches 2+ red flags from the reference list above
+- UNCERTAIN: matches exactly 1 red flag, or image quality too low to be sure
+
+Be balanced - most real screenshots people share ARE genuine. Only flag FAKE with concrete specific evidence matching the red flags above. Do not invent issues that aren't really there.
 
 Respond ONLY with valid JSON, no markdown, no backticks:
 {
   "verdict": "GENUINE" | "FAKE" | "UNCERTAIN",
   "confidence": <integer 0-100>,
   "summary": "<one clear sentence>",
+  "sender_name": "<name of person paid, exactly as shown, or 'Unknown'>",
   "signals": [
-    { "type": "ok" | "warn" | "bad", "text": "<specific finding>" }
+    { "type": "ok" | "warn" | "bad", "text": "<specific finding referencing the characteristics above>" }
   ],
-  "detail": "<2-3 sentence technical explanation>"
+  "detail": "<2-3 sentences explaining which reference characteristics matched or didn't match>"
 }`;
 
 app.post("/api/analyze", upload.single("screenshot"), async (req, res) => {
@@ -73,8 +90,10 @@ app.post("/api/analyze", upload.single("screenshot"), async (req, res) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-4-maverick",
-        messages: [
+  model: "meta-llama/llama-4-maverick:free",
+  temperature: 0.2,
+  top_p: 0.9,
+  messages: [
           {
             role: "user",
             content: [
