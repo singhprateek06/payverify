@@ -90,7 +90,7 @@ app.post("/api/analyze", upload.single("screenshot"), async (req, res) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-  model: "meta-llama/llama-4-maverick:free",
+  model: "meta-llama/llama-4-maverick",
   temperature: 0.2,
   top_p: 0.9,
   messages: [
