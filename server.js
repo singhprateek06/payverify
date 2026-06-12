@@ -30,7 +30,14 @@ REFERENCE - GENUINE SCREENSHOT CHARACTERISTICS:
 - All elements are perfectly aligned on a grid, consistent padding
 - Amount and "Paid to" name use the exact same font as rest of screen
 - Logos (UPI, bank logos) are crisp and exactly proportioned
-
+GOOGLE PAY MINIMAL SCREEN REFERENCE (checkmark + amount + "Paid to" name style):
+- Background is pure solid black, no texture or noise
+- Checkmark circle is solid blue (#1A73E8) or solid green, perfectly circular, white checkmark centered inside
+- CRITICAL: The amount text, "Paid to" label, recipient name, and "Banking name" line must ALL use the exact same font, same weight, and be perfectly center-aligned on the same vertical axis
+- For this minimal layout, FONT CONSISTENCY across all text lines is the #1 signal - if the amount font looks even slightly different from the name font (different weight, size ratio, or style), that is the strongest fake indicator
+- The green shield verification badge next to "Banking name" should be a proper shield shape with a white checkmark inside, standard Google green color
+- Recipient name and "Banking name" value are usually identical or near-identical
+- If all text shares the same font and alignment, and the checkmark/shield icons look standard, lean toward GENUINE even if the screen looks "simple"
 REFERENCE - FAKE/EDITED SCREENSHOT RED FLAGS:
 - Amount or name text has slightly different font, size, or boldness than surrounding text
 - Visible rectangle/halo or color difference around edited text (copy-paste box)
