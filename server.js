@@ -1,230 +1,314 @@
+
+require("dotenv").config();
+
 const express = require("express");
 const multer = require("multer");
 const cors = require("cors");
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "1mb" }));
 
-const storage = multer.memoryStorage();
+// Image upload configuration
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    if (file.mimetype.startsWith("image/")) cb(null, true);
-    else cb(new Error("Only image files are allowed"), false);
+    if (file.mimetype.startsWith("image/")) {
+      return cb(null, true);
+    }
+    cb(new Error("Only image files are allowed."));
   },
 });
 
-const PROMPT = `You are a digital forensics expert specializing in Indian payment screenshot authentication (Google Pay, PhonePe, Paytm, BHIM, NEFT, IMPS, UPI, bank apps).
+// Shared OpenRouter request helper
+async function callOpenRouter({ model, messages, temperature = 0.2 }) {
+  const apiKey = process.env.OPENROUTER_API_KEY;
 
-ABSOLUTE RULE: Never mention, flag, or consider dates or timestamps. Dates are completely irrelevant. Ignore all dates.
+  if (!apiKey) {
+    const err = new Error("OPENROUTER_API_KEY not configured in Render.");
+    err.status = 500;
+    throw err;
+  }
 
-REFERENCE - GENUINE SCREENSHOT CHARACTERISTICS:
-- Text uses a single consistent sans-serif font throughout (Roboto/Google Sans/Inter style)
-- Numbers are perfectly sharp, same weight as surrounding text
-- Success checkmark icon is a clean solid circle with white tick, no jagged edges
-- Background is solid color or simple smooth gradient, no visible noise/grain
-- All elements are perfectly aligned on a grid, consistent padding
-- Amount and "Paid to" name use the exact same font as rest of screen
-- Logos (UPI, bank logos) are crisp and exactly proportioned
-GOOGLE PAY MINIMAL SCREEN REFERENCE (checkmark + amount + "Paid to" name style):
-- Background is pure solid black, no texture or noise
-- Checkmark circle is solid blue (#1A73E8) or solid green, perfectly circular, white checkmark centered inside
-- CRITICAL: The amount text, "Paid to" label, recipient name, and "Banking name" line must ALL use the exact same font, same weight, and be perfectly center-aligned on the same vertical axis
-- For this minimal layout, FONT CONSISTENCY across all text lines is the #1 signal - if the amount font looks even slightly different from the name font (different weight, size ratio, or style), that is the strongest fake indicator
-- The green shield verification badge next to "Banking name" should be a proper shield shape with a white checkmark inside, standard Google green color
-- Recipient name and "Banking name" value are usually identical or near-identical
-- If all text shares the same font and alignment, and the checkmark/shield icons look standard, lean toward GENUINE even if the screen looks "simple"
-REFERENCE - FAKE/EDITED SCREENSHOT RED FLAGS:
-- Amount or name text has slightly different font, size, or boldness than surrounding text
-- Visible rectangle/halo or color difference around edited text (copy-paste box)
-- Blurry or pixelated numbers while rest of image is sharp
-- Background has visible grain/noise/texture (common in AI generated images)
-- Checkmark icon looks slightly asymmetric, wrong shade of green/blue, or has soft edges
-- Text characters look slightly wavy or unevenly spaced (AI generation signature)
-- Misaligned elements - amount not centered properly, padding inconsistent
-- Logo looks slightly distorted, wrong color, or low resolution compared to rest
+  const response = await fetch(
+    "https://openrouter.ai/api/v1/chat/completions",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ model, messages, temperature }),
+      signal: AbortSignal.timeout(90000),
+    }
+  );
 
-ANALYSIS PROCESS:
-1. Identify the payment app (GPay/PhonePe/Paytm/BHIM/bank/other)
-2. Compare the amount text against the GENUINE characteristics above - does it match?
-3. Compare the "Paid to" name text against GENUINE characteristics - does it match?
-4. Check the success icon/checkmark against GENUINE characteristics
-5. Check overall background and texture against GENUINE characteristics
-6. Check alignment and layout against GENUINE characteristics
-7. Check transaction ID format validity for the identified app
+  const data = await response.json().catch(() => ({}));
 
-VERDICT DECISION:
-- GENUINE: matches reference genuine characteristics closely, no red flags found
-- FAKE: matches 2+ red flags from the reference list above
-- UNCERTAIN: matches exactly 1 red flag, or image quality too low to be sure
+  if (!response.ok) {
+    console.error("OpenRouter error:", {
+      status: response.status,
+      message: data.error?.message || "Unknown API error",
+      code: data.error?.code,
+    });
 
-Be balanced - most real screenshots people share ARE genuine. Only flag FAKE with concrete specific evidence matching the red flags above. Do not invent issues that aren't really there.
+    const err = new Error(
+      data.error?.message || "OpenRouter request failed."
+    );
+    err.status = 502;
+    throw err;
+  }
 
-Respond ONLY with valid JSON, no markdown, no backticks:
+  const content = data.choices?.[0]?.message?.content;
+
+  if (typeof content !== "string" || !content.trim()) {
+    throw new Error("The AI returned an empty response.");
+  }
+
+  return content.trim();
+}
+
+// Parse AI JSON safely
+function parseAIJson(rawText) {
+  const cleaned = rawText.replace(/```(?:json)?/gi, "").trim();
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    const start = cleaned.indexOf("{");
+    const end = cleaned.lastIndexOf("}");
+
+    if (start >= 0 && end > start) {
+      return JSON.parse(cleaned.slice(start, end + 1));
+    }
+
+    throw new Error("The AI response was not valid JSON.");
+  }
+}
+
+// Exclude date/timestamp-related visual signals.
+// Never infer that a screenshot is genuine just because
+// all signals have been filtered out.
+const EXCLUDED_TERMS = [
+  "date", "time", "timestamp", "future", "past",
+  "january", "february", "march", "april", "may",
+  "june", "july", "august", "september", "october",
+  "november", "december", "2024", "2025", "2026", "2027",
+];
+
+function cleanAnalysis(result) {
+  if (!result || typeof result !== "object" || Array.isArray(result)) {
+    throw new Error("Invalid AI analysis response.");
+  }
+
+  const verdicts = ["GENUINE", "FAKE", "UNCERTAIN"];
+  const signalTypes = ["ok", "warn", "bad"];
+
+  if (!verdicts.includes(result.verdict)) {
+    result.verdict = "UNCERTAIN";
+  }
+
+  const confidence = Number(result.confidence);
+  result.confidence = Number.isFinite(confidence)
+    ? Math.max(0, Math.min(100, Math.round(confidence)))
+    : 0;
+
+  result.summary =
+    typeof result.summary === "string"
+      ? result.summary
+      : "The screenshot could not be assessed reliably.";
+
+  result.sender_name =
+    typeof result.sender_name === "string"
+      ? result.sender_name
+      : "Unknown";
+
+  result.detail =
+    typeof result.detail === "string"
+      ? result.detail
+      : "Insufficient information for a reliable assessment.";
+
+  result.signals = Array.isArray(result.signals)
+    ? result.signals
+        .filter((s) => s && typeof s.text === "string")
+        .filter((s) => {
+          const text = s.text.toLowerCase();
+          return !EXCLUDED_TERMS.some((term) => text.includes(term));
+        })
+        .map((s) => ({
+          type: signalTypes.includes(s.type) ? s.type : "warn",
+          text: s.text,
+        }))
+    : [];
+
+  return result;
+}
+
+const PROMPT = `
+You are a digital forensics assistant examining Indian UPI
+and banking payment screenshots.
+
+Do not use dates or timestamps as evidence.
+
+Examine:
+1. Font consistency and text alignment.
+2. Pixelation, blur, unusual edges and editing halos.
+3. Checkmark, logo, icon and layout consistency.
+4. Background artifacts and suspicious visual inconsistencies.
+5. Amount and recipient text rendering.
+6. Whether transaction identifiers look structurally plausible.
+   Do not claim to have verified them against bank records.
+
+Do not assume that a simple design, dark background or particular
+font proves authenticity. Compression can create visual artifacts.
+
+A screenshot alone cannot prove that a payment occurred.
+
+Verdict rules:
+- FAKE: multiple strong, concrete visual indicators of manipulation.
+- UNCERTAIN: ambiguous evidence, insufficient evidence or poor image quality.
+- GENUINE: no significant visual manipulation indicators detected.
+  This is a visual assessment, not proof of payment.
+
+Return ONLY valid JSON:
 {
   "verdict": "GENUINE" | "FAKE" | "UNCERTAIN",
-  "confidence": <integer 0-100>,
-  "summary": "<one clear sentence>",
-  "sender_name": "<name of person paid, exactly as shown, or 'Unknown'>",
+  "confidence": 0,
+  "summary": "One clear sentence.",
+  "sender_name": "Recipient name exactly as displayed, or Unknown",
   "signals": [
-    { "type": "ok" | "warn" | "bad", "text": "<specific finding referencing the characteristics above>" }
+    {
+      "type": "ok" | "warn" | "bad",
+      "text": "A specific visual observation"
+    }
   ],
-  "detail": "<2-3 sentences explaining which reference characteristics matched or didn't match>"
-}`;
+  "detail": "Two or three sentences explaining the evidence and limitations."
+}
 
+Confidence describes confidence in the visual assessment,
+not proof that a payment occurred.
+`;
+
+// Health check
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok" });
+});
+
+// Payment screenshot analysis
 app.post("/api/analyze", upload.single("screenshot"), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: "No image file uploaded." });
+      return res.status(400).json({
+        error: "No image uploaded. Use the field name screenshot.",
+      });
     }
 
     const base64Image = req.file.buffer.toString("base64");
     const mimeType = req.file.mimetype;
-    const apiKey = process.env.OPENROUTER_API_KEY;
 
-    if (!apiKey) {
-      return res.status(500).json({ error: "OPENROUTER_API_KEY not set." });
-    }
-
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-  model: "meta-llama/llama-4-maverick",
-  temperature: 0.2,
-  top_p: 0.9,
-  messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: PROMPT },
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType};base64,${base64Image}`,
-                },
+    const rawText = await callOpenRouter({
+      model: "meta-llama/llama-4-maverick",
+      temperature: 0.2,
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: PROMPT },
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64Image}`,
               },
-            ],
-          },
-        ],
-      }),
+            },
+          ],
+        },
+      ],
     });
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error("OpenRouter error:", JSON.stringify(data));
-      throw new Error(data.error?.message || "OpenRouter API error");
-    }
-
-    const rawText = data.choices?.[0]?.message?.content || "";
-
-    let parsed;
-    try {
-      const clean = rawText.replace(/```json|```/g, "").trim();
-      parsed = JSON.parse(clean);
-      // Filter out any date related signals
-if (parsed.signals) {
-  parsed.signals = parsed.signals.filter(s => {
-    const text = (s.text || '').toLowerCase();
-    return !text.includes('date') && 
-           !text.includes('time') && 
-           !text.includes('future') && 
-           !text.includes('past') &&
-           !text.includes('june') &&
-           !text.includes('january') &&
-           !text.includes('february') &&
-           !text.includes('march') &&
-           !text.includes('april') &&
-           !text.includes('may') &&
-           !text.includes('july') &&
-           !text.includes('august') &&
-           !text.includes('september') &&
-           !text.includes('october') &&
-           !text.includes('november') &&
-           !text.includes('december') &&
-           !text.includes('2024') &&
-           !text.includes('2025') &&
-           !text.includes('2026') &&
-           !text.includes('2027');
-  });
-}
-
-// Fix verdict if only reason was date
-if (parsed.signals && parsed.signals.length === 0 && 
-    (parsed.summary || '').toLowerCase().includes('date')) {
-  parsed.verdict = 'GENUINE';
-  parsed.confidence = 75;
-  parsed.summary = 'Screenshot appears authentic based on visual analysis.';
-}
-
-// Clean date mentions from summary and detail
-if (parsed.summary) {
-  parsed.summary = parsed.summary.replace(/\b\d{1,2}\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}\b/gi, '');
-}
-    } catch (e) {
-      return res.status(500).json({ error: "Failed to parse AI response.", raw: rawText });
-    }
-
-    res.json(parsed);
+    const result = cleanAnalysis(parseAIJson(rawText));
+    return res.json(result);
   } catch (err) {
-    console.error("Error:", err.message);
-    res.status(500).json({ error: err.message || "Internal server error" });
+    console.error("Analysis error:", err.message);
+
+    return res.status(err.status || 500).json({
+      error: err.message || "Screenshot analysis failed.",
+    });
   }
 });
 
-app.get("/api/health", (req, res) => {
-  res.json({ status: "ok" });
-});
-app.post('/api/chat', async (req, res) => {
+// PayVerify chatbot
+app.post("/api/chat", async (req, res) => {
   try {
-    const { message } = req.body;
-    const apiKey = process.env.OPENROUTER_API_KEY;
+    const { message } = req.body || {};
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-4-maverick:free",
-        messages: [
-          {
-            role: "system",
-            content: `You are PayVerify Assistant, a helpful expert on Indian UPI/payment fraud and how to spot fake payment screenshots. 
-            Help users understand how PayVerify works, give tips on spotting fake screenshots, and advise what to do if they receive a fake payment.
-            Keep responses under 4 sentences. Be friendly and practical.
-            PayVerify checks: font consistency, pixel artifacts, layout, colors, transaction ID format, amount formatting, and logos.`
-          },
-          { role: "user", content: message }
-        ]
-      }),
+    if (typeof message !== "string" || !message.trim()) {
+      return res.status(400).json({ error: "Please provide a message." });
+    }
+
+    if (message.length > 4000) {
+      return res.status(400).json({
+        error: "Message is too long. Maximum 4000 characters.",
+      });
+    }
+
+    const reply = await callOpenRouter({
+      model: "meta-llama/llama-4-maverick:free",
+      temperature: 0.4,
+      messages: [
+        {
+          role: "system",
+          content: `You are PayVerify Assistant, an expert on Indian
+UPI payment fraud and suspicious payment screenshots.
+Explain visual checks, common fraud signs and why users should
+verify incoming payments in their bank account or official payment app.
+Keep replies under four sentences. Be friendly and practical.
+Never claim that a screenshot proves payment.`,
+        },
+        { role: "user", content: message.trim() },
+      ],
     });
 
-    const data = await response.json();
-console.log("OpenRouter chat response:", JSON.stringify(data));
-
-if (data.error) {
-  return res.json({ reply: "Error: " + data.error.message });
-}
-
-const reply = data.choices?.[0]?.message?.content || "Sorry, I could not process that.";
-res.json({ reply });
+    return res.json({ reply });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Chat error:", err.message);
+
+    return res.status(err.status || 500).json({
+      error: err.message || "Chat request failed.",
+    });
   }
 });
-app.listen(PORT, () => {
-  console.log(`\n✅ PayVerify backend running at http://localhost:${PORT}`);
+
+// Handle image upload and request errors
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+
+  console.error("Request error:", err.message);
+
+  if (err instanceof multer.MulterError) {
+    return res.status(400).json({
+      error:
+        err.code === "LIMIT_FILE_SIZE"
+          ? "Image exceeds the 10 MB limit."
+          : err.message,
+    });
+  }
+
+  if (err.message === "Only image files are allowed.") {
+    return res.status(400).json({ error: err.message });
+  }
+
+  return res.status(err.status || 500).json({
+    error: err.message || "Internal server error.",
+  });
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`PayVerify backend listening on port ${PORT}`);
+
   if (!process.env.OPENROUTER_API_KEY) {
-    console.warn("⚠️  WARNING: OPENROUTER_API_KEY not set.\n");
+    console.warn("OPENROUTER_API_KEY is not configured.");
   }
 });
